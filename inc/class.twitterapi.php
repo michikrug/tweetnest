@@ -22,13 +22,25 @@ require_once "twitteroauth/config.php";
 			"user.id"      => "userid"
 		);
 
-        public function __construct() {
-            global $config;
-            $this->connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $config['twitter_token'], $config['twitter_token_secr']);
-        }
+		// Nothing here so far...
+        public function __construct(){}
+
+		// Only lazily create the OAuth connection when needed.
+		private function createConnection(){
+			global $config;
+			if(!$this->connection){
+				$this->connection = new TwitterOAuth(CONSUMER_KEY, CONSUMER_SECRET, $config['twitter_token'], $config['twitter_token_secr']);
+			}
+		}
 		
-		public function query($path){
-			return $this->connection->get($path);
+		public function query($path, $parameters = array()){
+			$this->createConnection();
+
+			if($this->connection instanceof TwitterOAuth){
+				return $this->connection->get($path, $parameters);
+			}
+
+			return null;
 		}
 		//TODO: BUILD IN SUPPORT FOR "RATE LIMIT EXCEEDED"
 		
@@ -154,6 +166,6 @@ require_once "twitteroauth/config.php";
 		public function insertQuery($t){
 			global $db;
 			$type = ($t['text'][0] == "@") ? 1 : (preg_match("/RT @\w+/", $t['text']) ? 2 : 0);
-			return "INSERT INTO `".DTP."tweets` (`userid`, `tweetid`, `type`, `time`, `text`, `source`, `extra`, `coordinates`, `geo`, `place`, `contributors`) VALUES ('" . $db->s($t['userid']) . "', '" . $db->s($t['tweetid']) . "', '" . $db->s($type) . "', '" . $db->s($t['time']) . "', '" . $db->s($this->entityDecode($t['text'])) . "', '" . $db->s($t['source']) . "', '" . $db->s(serialize($t['extra'])) . "', '" . $db->s(serialize($t['coordinates'])) . "', '" . $db->s(serialize($t['geo'])) . "', '" . $db->s(serialize($t['place'])) . "', '" . $db->s(serialize($t['contributors'])) . "');";
+			return "INSERT IGNORE INTO `".DTP."tweets` (`userid`, `tweetid`, `type`, `time`, `text`, `source`, `extra`, `coordinates`, `geo`, `place`, `contributors`) VALUES ('" . $db->s($t['userid']) . "', '" . $db->s($t['tweetid']) . "', '" . $db->s($type) . "', '" . $db->s($t['time']) . "', '" . $db->s($this->entityDecode($t['text'])) . "', '" . $db->s($t['source']) . "', '" . $db->s(serialize($t['extra'])) . "', '" . $db->s(serialize($t['coordinates'])) . "', '" . $db->s(serialize($t['geo'])) . "', '" . $db->s(serialize($t['place'])) . "', '" . $db->s(serialize($t['contributors'])) . "');";
 		}
 	}
